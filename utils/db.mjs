@@ -29,22 +29,24 @@ class DBClient {
     const url = `mongodb://${host}:${port}`;
     this.client = new MongoClient(url);
     this.db = this.client.db(database);
-    this.isConnected = false;
 
     // Initiate connection.
     this.client
       .connect()
       .then(() => {
-        this.isConnected = true;
+        this.client.connected = true;
       })
-      .catch((error) => {
-        console.error('MongoDB connection error:', error);
+      .catch((err) => {
+        console.error('MongoDB connection error:', err);
       });
   }
 
   // Check connection status.
   isAlive() {
-    return this.isConnected;
+    if (this.client.connected) {
+      return true;
+    }
+    return false;
   }
 
   // Count users.
