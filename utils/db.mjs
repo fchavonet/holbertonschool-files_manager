@@ -26,22 +26,23 @@ class DBClient {
       database = 'files_manager';
     }
 
-    const url = `mongodb://${host}:${port}`;
-    this.client = new MongoClient(url);
-    this.db = this.client.db(database);
+    const uri = `mongodb://${host}:${port}`;
+
+    this.client = new mongo.MongoClient(uri);
 
     // Initiate connection.
     this.client
       .connect()
       .then(() => {
         this.client.connected = true;
+        this.db = this.client.db(database);
       })
-      .catch((err) => {
-        console.error('MongoDB connection error:', err);
+      .catch((error) => {
+        console.error('MongoDB connection error:', error);
       });
   }
 
-  // Check connection status.
+  // Check if MongoDB client is connected.
   isAlive() {
     if (this.client.connected) {
       return true;
@@ -49,13 +50,19 @@ class DBClient {
     return false;
   }
 
-  // Count users.
+  // Get number of users.
   async nbUsers() {
+    if (!this.isAlive()) {
+      return 0;
+    }
     return this.db.collection('users').countDocuments();
   }
 
-  // Count files.
+  // Get number of files.
   async nbFiles() {
+    if (!this.isAlive()) {
+      return 0;
+    }
     return this.db.collection('files').countDocuments();
   }
 }
