@@ -52,12 +52,19 @@ class FilesController {
       }
     }
 
+    let dbParentId;
+    if (parentId === 0) {
+      dbParentId = 0;
+    } else {
+      dbParentId = new ObjectId(parentId);
+    }
+
     const fileDoc = {
       userId: new ObjectId(userId),
       name,
       type,
       isPublic,
-      parentId: parentId === 0 ? 0 : new ObjectId(parentId),
+      parentId: dbParentId,
     };
 
     if (type === 'folder') {
@@ -95,6 +102,119 @@ class FilesController {
       isPublic,
       parentId,
     });
+  }
+
+  static async getShow(req, res) {
+    const token = req.headers['x-token'];
+    const userId = await redisClient.get(`auth_${token}`);
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const fileId = req.params.id;
+    let file;
+
+    try {
+      file = await dbClient.db
+        .collection('files')
+        .findOne({
+          _id: new ObjectId(fileId),
+          userId: new ObjectId(userId),
+        });
+    } catch (err) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    if (!file) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    let resParentId;
+
+    if (file.parentId === 0) {
+      resParentId = 0;
+    } else {
+      resParentId = file.parentId.toString();
+    }
+
+    return res.status(200).json({
+      id: file._id.toString(),
+      userId: file.userId.toString(),
+      name: file.name,
+      type: file.type,
+      isPublic: file.isPublic,
+      parentId: resParentId,
+    });
+  }
+
+  static async getIndex(req, res) {
+    const token = req.headers['x-token'];
+    const userId = await redisClient.get(`auth_${token}`);
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    let parentIdQuery;
+
+    if (req.query.parentId === undefined) {
+      parentIdQuery = '0';
+    } else {
+      parentIdQuery = req.query.parentId;
+    }
+
+    let filterParentId;
+    if (parentIdQuery === '0') {
+      filterParentId = 0;
+    } else {
+      filterParentId = new ObjectId(parentIdQuery);
+    }
+
+    let page;
+    if (!req.query.page) {
+      page = 0;
+    } else {
+      page = parseInt(req.query.page, 10);
+
+      if (Number.isNaN(page) || page < 0) {
+        page = 0;
+      }
+    }
+
+    const cursor = dbClient.db
+      .collection('files')
+      .find({
+        userId: new ObjectId(userId),
+        parentId: filterParentId,
+      })
+      .skip(page * 20)
+      .limit(20);
+
+    const files = await cursor.toArray();
+
+    const result = [];
+
+    for (const file of files) {
+      let resPid;
+
+      if (file.parentId === 0) {
+        resPid = 0;
+      } else {
+        resPid = file.parentId.toString();
+      }
+
+      result.push({
+        id: file._id.toString(),
+        userId: file.userId.toString(),
+        name: file.name,
+        type: file.type,
+        isPublic: file.isPublic,
+        parentId: resPid,
+      });
+    }
+
+    return res.status(200).json(result);
   }
 }
 
