@@ -19,7 +19,7 @@ class FilesController {
     const {
       name,
       type,
-      parentId = 0,
+      parentId = '0',
       isPublic = false,
       data,
     } = req.body || {};
@@ -36,10 +36,9 @@ class FilesController {
       return res.status(400).json({ error: 'Missing data' });
     }
 
-    // 4) Vérif parentId si renseigné
     let parentFile = null;
 
-    if (parentId !== 0) {
+    if (parentId !== '0') {
       parentFile = await dbClient.db
         .collection('files')
         .findOne({ _id: new ObjectId(parentId) });
@@ -53,8 +52,9 @@ class FilesController {
     }
 
     let dbParentId;
-    if (parentId === 0) {
-      dbParentId = 0;
+
+    if (parentId === '0') {
+      dbParentId = '0';
     } else {
       dbParentId = new ObjectId(parentId);
     }
@@ -72,8 +72,12 @@ class FilesController {
         .collection('files')
         .insertOne(fileDoc);
       return res.status(201).json({
-        id: insertedId,
-        ...fileDoc,
+        id: insertedId.toString(),
+        userId: fileDoc.userId.toString(),
+        name: fileDoc.name,
+        type: fileDoc.type,
+        isPublic: fileDoc.isPublic,
+        parentId: fileDoc.parentId,
       });
     }
 
@@ -95,12 +99,12 @@ class FilesController {
       .insertOne({ ...fileDoc, localPath });
 
     return res.status(201).json({
-      id: insertedId,
-      userId,
+      id: insertedId.toString(),
+      userId: fileDoc.userId.toString(),
       name,
       type,
       isPublic,
-      parentId,
+      parentId: fileDoc.parentId,
     });
   }
 
@@ -112,14 +116,13 @@ class FilesController {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const fileId = req.params.id;
     let file;
 
     try {
       file = await dbClient.db
         .collection('files')
         .findOne({
-          _id: new ObjectId(fileId),
+          _id: new ObjectId(req.params.id),
           userId: new ObjectId(userId),
         });
     } catch (err) {
@@ -132,8 +135,8 @@ class FilesController {
 
     let resParentId;
 
-    if (file.parentId === 0) {
-      resParentId = 0;
+    if (file.parentId === '0') {
+      resParentId = '0';
     } else {
       resParentId = file.parentId.toString();
     }
@@ -166,12 +169,13 @@ class FilesController {
 
     let filterParentId;
     if (parentIdQuery === '0') {
-      filterParentId = 0;
+      filterParentId = '0';
     } else {
       filterParentId = new ObjectId(parentIdQuery);
     }
 
     let page;
+
     if (!req.query.page) {
       page = 0;
     } else {
@@ -182,24 +186,23 @@ class FilesController {
       }
     }
 
-    const cursor = dbClient.db
+    const files = await dbClient.db
       .collection('files')
       .find({
         userId: new ObjectId(userId),
         parentId: filterParentId,
       })
       .skip(page * 20)
-      .limit(20);
-
-    const files = await cursor.toArray();
+      .limit(20)
+      .toArray();
 
     const result = [];
 
     for (const file of files) {
       let resPid;
 
-      if (file.parentId === 0) {
-        resPid = 0;
+      if (file.parentId === '0') {
+        resPid = '0';
       } else {
         resPid = file.parentId.toString();
       }
