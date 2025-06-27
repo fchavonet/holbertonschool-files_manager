@@ -3,10 +3,12 @@ import { promises as fs, existsSync, mkdirSync } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import mime from 'mime-types';
+import Queue from 'bull';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
 
 const FOLDER_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
+const fileQueue = new Queue('fileQueue');
 
 class FilesController {
   static async postUpload(req, res) {
@@ -98,6 +100,8 @@ class FilesController {
     const { insertedId } = await dbClient.db
       .collection('files')
       .insertOne({ ...fileDoc, localPath });
+
+    fileQueue.add({ userId, fileId: insertedId.toString() });
 
     return res.status(201).json({
       id: insertedId.toString(),
@@ -324,7 +328,7 @@ class FilesController {
   }
 
   static async getFile(req, res) {
-    const fileId = req.params.id;
+    const { id: fileId } = req.params;
     let file;
 
     try {
@@ -368,10 +372,23 @@ class FilesController {
       mimeType = 'application/octet-stream';
     }
 
+    const { size } = req.query;
+    let readPath = file.localPath;
+
+    if (size) {
+      if (size !== '100' && size !== '250' && size !== '500') {
+        return res.status(400).json({ error: 'Invalid size' });
+      }
+      readPath = `${file.localPath}_${size}`;
+      if (!existsSync(readPath)) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+    }
+
     let data;
 
     try {
-      data = await fs.readFile(file.localPath);
+      data = await fs.readFile(readPath);
     } catch (err) {
       return res.status(404).json({ error: 'Not found' });
     }
