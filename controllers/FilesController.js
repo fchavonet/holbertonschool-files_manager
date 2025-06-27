@@ -111,13 +111,21 @@ class FilesController {
 
     fileQueue.add({ userId, fileId: insertedId.toString() });
 
+    let parentIdResponse;
+
+    if (fileDoc.parentId === '0') {
+      parentIdResponse = 0;
+    } else {
+      parentIdResponse = fileDoc.parentId.toString();
+    }
+
     return res.status(201).json({
       id: insertedId.toString(),
       userId: fileDoc.userId.toString(),
       name,
       type,
       isPublic,
-      parentId: fileDoc.parentId,
+      parentId: parentIdResponse,
     });
   }
 
@@ -269,7 +277,7 @@ class FilesController {
     let resParentId;
 
     if (file.parentId === '0') {
-      resParentId = '0';
+      resParentId = 0;
     } else {
       resParentId = file.parentId.toString();
     }
@@ -320,7 +328,7 @@ class FilesController {
     let resParentId;
 
     if (file.parentId === '0') {
-      resParentId = '0';
+      resParentId = 0;
     } else {
       resParentId = file.parentId.toString();
     }
