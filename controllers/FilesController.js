@@ -74,13 +74,21 @@ class FilesController {
       const { insertedId } = await dbClient.db
         .collection('files')
         .insertOne(fileDoc);
+
+      let parentIdResponse;
+      if (fileDoc.parentId === '0') {
+        parentIdResponse = 0;
+      } else {
+        parentIdResponse = fileDoc.parentId.toString();
+      }
+
       return res.status(201).json({
         id: insertedId.toString(),
         userId: fileDoc.userId.toString(),
         name: fileDoc.name,
         type: fileDoc.type,
         isPublic: fileDoc.isPublic,
-        parentId: fileDoc.parentId,
+        parentId: parentIdResponse,
       });
     }
 
@@ -141,7 +149,7 @@ class FilesController {
     let resParentId;
 
     if (file.parentId === '0') {
-      resParentId = '0';
+      resParentId = 0;
     } else {
       resParentId = file.parentId.toString();
     }
@@ -207,7 +215,7 @@ class FilesController {
       let resPid;
 
       if (file.parentId === '0') {
-        resPid = '0';
+        resPid = 0;
       } else {
         resPid = file.parentId.toString();
       }
